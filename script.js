@@ -1,4 +1,3 @@
-
 const images = [
   { url: 'https://eagleviewmusic.com/images/MusicalSymbolColoring0001.png', name: 'Treble Clef' },
   { url: 'https://eagleviewmusic.com/images/MusicalSymbolColoring0002.png', name: 'Bass Clef' },
@@ -35,6 +34,7 @@ const eraserBtn = document.getElementById('eraserBtn');
 const colorPicker = document.getElementById('colorPicker');
 const clearBtn = document.getElementById('clearBtn');
 const hideImageBtn = document.getElementById('hideImageBtn');
+const copyBtn = document.getElementById('copyBtn');
 const sizeCircles = document.querySelectorAll('.size-circle');
 const colorButtons = document.querySelectorAll('.color-button');
 
@@ -357,6 +357,49 @@ function playSound(type) {
     oscillator.stop(audioContext.currentTime + duration);
   } catch (e) { console.log("Sound not supported or error:", e); }
 }
+
+copyBtn.addEventListener('click', async () => {
+  const originalText = copyBtn.innerHTML;
+  try {
+    copyBtn.innerHTML = '⏳ Copying...';
+    
+    // Create a temporary canvas to merge all layers
+    const mergedCanvas = document.createElement('canvas');
+    mergedCanvas.width = drawCanvas.width;
+    mergedCanvas.height = drawCanvas.height;
+    const mergedCtx = mergedCanvas.getContext('2d');
+
+    // Fill background with white to avoid transparency issues
+    mergedCtx.fillStyle = 'white';
+    mergedCtx.fillRect(0, 0, mergedCanvas.width, mergedCanvas.height);
+
+    // Draw canvases in order: background, base drawings, then top drawings
+    mergedCtx.drawImage(bgCanvas, 0, 0);
+    mergedCtx.drawImage(baseCanvas, 0, 0);
+    mergedCtx.drawImage(drawCanvas, 0, 0);
+
+    // Use the Clipboard API to copy the merged canvas
+    mergedCanvas.toBlob(async (blob) => {
+      try {
+        await navigator.clipboard.write([
+          new ClipboardItem({ 'image/png': blob })
+        ]);
+        copyBtn.innerHTML = '✅ Copied!';
+      } catch (err) {
+        console.error('Failed to copy image to clipboard:', err);
+        copyBtn.innerHTML = '❌ Failed!';
+      }
+    }, 'image/png');
+
+  } catch (error) {
+    console.error('Failed to capture canvas:', error);
+    copyBtn.innerHTML = '❌ Failed!';
+  } finally {
+    setTimeout(() => {
+      copyBtn.innerHTML = originalText;
+    }, 2000);
+  }
+});
 
 drawCanvas.addEventListener('mousedown', startDraw);
 drawCanvas.addEventListener('mousemove', draw);
