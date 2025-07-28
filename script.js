@@ -223,6 +223,9 @@ sizeCircles.forEach(circle => {
 
 colorButtons.forEach(btn => {
   const clickHandler = () => {
+    if (tool === 'eraser') {
+      tool = 'pen';
+    }
     const color = btn.getAttribute('data-color');
     if (tool === 'bgBrush') {
         bgColor = color;
@@ -230,8 +233,7 @@ colorButtons.forEach(btn => {
         penColor = color;
     }
     colorPicker.value = color;
-    updateColorButtonSelection();
-    updateSizeCircleColors();
+    updateToolHighlight();
     playSound('pop');
   };
   btn.addEventListener('click', clickHandler);
@@ -239,14 +241,16 @@ colorButtons.forEach(btn => {
 });
 
 colorPicker.addEventListener('input', () => {
+    if (tool === 'eraser') {
+        tool = 'pen';
+    }
     const newColor = colorPicker.value;
     if (tool === 'bgBrush') {
         bgColor = newColor;
     } else if (tool === 'pen') {
         penColor = newColor;
     }
-    updateColorButtonSelection();
-    updateSizeCircleColors();
+    updateToolHighlight();
 });
 
 clearBtn.addEventListener('click', () => {
