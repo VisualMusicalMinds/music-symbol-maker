@@ -44,6 +44,8 @@ let currentBrushSize = 6;
 let imageVisible = true;
 let isTouch = false;
 let lastPoint = null;
+let penColor = '#000000';
+let bgColor = '#000000';
 
 window.addEventListener('touchstart', function() { isTouch = true; }, { once: true });
 toggleSidebarBtn.addEventListener('click', function() { sidebar.classList.toggle('active'); });
@@ -54,10 +56,12 @@ document.addEventListener('click', function(e) {
 });
 
 function updateSizeCircleColors() {
-  const currentColor = colorPicker.value;
   sizeCircles.forEach(circle => {
-    if (!circle.hasAttribute('data-bg')) { 
-      circle.style.backgroundColor = tool === 'eraser' ? '#ffffff' : currentColor;
+    const isBgBrushCircle = circle.hasAttribute('data-bg');
+    if (isBgBrushCircle) {
+      circle.style.background = tool === 'bgBrush' ? bgColor : 'linear-gradient(135deg, #000 0%, #666 100%)';
+    } else {
+      circle.style.backgroundColor = tool === 'eraser' ? '#ffffff' : penColor;
     }
   });
 }
@@ -159,21 +163,41 @@ hideImageBtn.addEventListener('click', () => {
 });
 
 function updateToolHighlight() {
-  penBtn.classList.toggle('selected', tool === 'pen' || tool === 'bgBrush');
+  penBtn.classList.toggle('selected', tool === 'pen');
   eraserBtn.classList.toggle('selected', tool === 'eraser');
+  
+  const isBgBrushActive = tool === 'bgBrush';
+  const hugeCircle = document.querySelector('.size-circle[data-bg="true"]');
+  if (hugeCircle) {
+      hugeCircle.classList.toggle('selected', isBgBrushActive);
+  }
+  
+  if (tool === 'pen') {
+      colorPicker.value = penColor;
+  } else if (tool === 'bgBrush') {
+      colorPicker.value = bgColor;
+  }
+  
   updateSizeCircleColors();
+  updateColorButtonSelection();
 }
 
 function updateSizeHighlight(circle) {
-  sizeCircles.forEach(c => c.classList.toggle('selected', c === circle));
+  sizeCircles.forEach(c => c.classList.remove('selected'));
+  circle.classList.add('selected');
+}
+
+function updateColorButtonSelection() {
+    colorButtons.forEach(b => b.classList.remove('selected'));
+    const activeColor = (tool === 'bgBrush') ? bgColor : penColor;
+    const matchingBtn = Array.from(colorButtons).find(b => b.getAttribute('data-color').toLowerCase() === activeColor.toLowerCase());
+    if (matchingBtn) {
+        matchingBtn.classList.add('selected');
+    }
 }
 
 penBtn.addEventListener('click', () => { 
   tool = 'pen';
-  const selectedSizeCircle = document.querySelector('.size-circle.selected');
-  if (selectedSizeCircle && selectedSizeCircle.hasAttribute('data-bg')) {
-      tool = 'bgBrush';
-  }
   updateToolHighlight(); 
   playSound('click');
 });
@@ -200,9 +224,13 @@ sizeCircles.forEach(circle => {
 colorButtons.forEach(btn => {
   const clickHandler = () => {
     const color = btn.getAttribute('data-color');
+    if (tool === 'bgBrush') {
+        bgColor = color;
+    } else {
+        penColor = color;
+    }
     colorPicker.value = color;
-    colorButtons.forEach(b => b.classList.remove('selected'));
-    btn.classList.add('selected');
+    updateColorButtonSelection();
     updateSizeCircleColors();
     playSound('pop');
   };
@@ -210,12 +238,15 @@ colorButtons.forEach(btn => {
   btn.addEventListener('touchstart', (e) => { e.preventDefault(); clickHandler(); });
 });
 
-colorPicker.addEventListener('change', () => {
-  const selected = document.querySelector('.color-button.selected');
-  if (selected) selected.classList.remove('selected');
-  const matchingBtn = Array.from(colorButtons).find(b => b.getAttribute('data-color').toLowerCase() === colorPicker.value.toLowerCase());
-  if (matchingBtn) matchingBtn.classList.add('selected');
-  updateSizeCircleColors();
+colorPicker.addEventListener('input', () => {
+    const newColor = colorPicker.value;
+    if (tool === 'bgBrush') {
+        bgColor = newColor;
+    } else if (tool === 'pen') {
+        penColor = newColor;
+    }
+    updateColorButtonSelection();
+    updateSizeCircleColors();
 });
 
 clearBtn.addEventListener('click', () => {
@@ -252,7 +283,6 @@ function startDraw(e) {
     activeCtx = drawCtx;
   }
 
-  const gcoStore = activeCtx.globalCompositeOperation;
   activeCtx.beginPath();
   activeCtx.lineWidth = currentBrushSize;
   activeCtx.lineCap = 'round';
@@ -263,7 +293,7 @@ function startDraw(e) {
     activeCtx.strokeStyle = 'rgba(0,0,0,1)';
   } else {
     activeCtx.globalCompositeOperation = 'source-over';
-    activeCtx.strokeStyle = colorPicker.value;
+    activeCtx.strokeStyle = (tool === 'bgBrush') ? bgColor : penColor;
   }
   
   const coords = getCoords(e);
@@ -416,7 +446,13 @@ document.addEventListener('touchcancel', endDraw);
 
 document.addEventListener('visibilitychange', function() { if (document.visibilityState === 'visible') resize(); });
 
-updateSizeCircleColors();
+// Initial setup
+const selectedSizeCircle = document.querySelector('.size-circle.selected');
+if (selectedSizeCircle) {
+    tool = selectedSizeCircle.hasAttribute('data-bg') ? 'bgBrush' : 'pen';
+}
+updateToolHighlight();
+
 setTimeout(() => {
     resize(); 
     loadDrawingForCurrentImage(); 
