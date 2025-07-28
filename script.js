@@ -358,48 +358,60 @@ function playSound(type) {
   } catch (e) { console.log("Sound not supported or error:", e); }
 }
 
-copyBtn.addEventListener('click', async () => {
+copyBtn.addEventListener('click', () => {
   const originalText = copyBtn.innerHTML;
-  try {
-    copyBtn.innerHTML = '⏳ Copying...';
-    
-    // Create a temporary canvas to merge all layers
-    const mergedCanvas = document.createElement('canvas');
-    mergedCanvas.width = drawCanvas.width;
-    mergedCanvas.height = drawCanvas.height;
-    const mergedCtx = mergedCanvas.getContext('2d');
+  copyBtn.innerHTML = '⏳ Copying...';
 
-    // Fill background with white to avoid transparency issues
-    mergedCtx.fillStyle = 'white';
-    mergedCtx.fillRect(0, 0, mergedCanvas.width, mergedCanvas.height);
+  const mergedCanvas = document.createElement('canvas');
+  mergedCanvas.width = drawCanvas.width;
+  mergedCanvas.height = drawCanvas.height;
+  const mergedCtx = mergedCanvas.getContext('2d');
 
-    // Draw canvases in order: background, base drawings, then top drawings
-    mergedCtx.drawImage(bgCanvas, 0, 0);
+  // Fill background with white
+  mergedCtx.fillStyle = 'white';
+  mergedCtx.fillRect(0, 0, mergedCanvas.width, mergedCanvas.height);
+
+  const finishCopy = () => {
+    // Draw the other canvases on top
     mergedCtx.drawImage(baseCanvas, 0, 0);
     mergedCtx.drawImage(drawCanvas, 0, 0);
 
-    // Use the Clipboard API to copy the merged canvas
+    // Final copy to clipboard
     mergedCanvas.toBlob(async (blob) => {
       try {
-        await navigator.clipboard.write([
-          new ClipboardItem({ 'image/png': blob })
-        ]);
+        await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
         copyBtn.innerHTML = '✅ Copied!';
       } catch (err) {
         console.error('Failed to copy image to clipboard:', err);
         copyBtn.innerHTML = '❌ Failed!';
+      } finally {
+        setTimeout(() => { copyBtn.innerHTML = originalText; }, 2000);
       }
     }, 'image/png');
+  };
 
-  } catch (error) {
-    console.error('Failed to capture canvas:', error);
-    copyBtn.innerHTML = '❌ Failed!';
-  } finally {
-    setTimeout(() => {
-      copyBtn.innerHTML = originalText;
-    }, 2000);
+  if (imageVisible) {
+    // If background image is visible, load it and draw it first
+    const img = new Image();
+    img.crossOrigin = "Anonymous";
+    img.src = images[currentIndex].url;
+    img.onload = () => {
+      const scale = Math.min(bgCanvas.width / img.width, bgCanvas.height / img.height) * 0.8;
+      const x = (bgCanvas.width - img.width * scale) / 2;
+      const y = (bgCanvas.height - img.height * scale) / 2;
+      mergedCtx.drawImage(img, 0, 0, img.width, img.height, x, y, img.width * scale, img.height * scale);
+      finishCopy();
+    };
+    img.onerror = () => {
+      console.error("Background image failed to load for copying.");
+      finishCopy(); // Proceed without the background image if it fails
+    };
+  } else {
+    // If not visible, proceed directly to copying the other layers
+    finishCopy();
   }
 });
+
 
 drawCanvas.addEventListener('mousedown', startDraw);
 drawCanvas.addEventListener('mousemove', draw);
